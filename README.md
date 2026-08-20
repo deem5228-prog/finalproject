@@ -1,179 +1,159 @@
 # 🥚 Egg Yolk Color Predictor
 
-**การพัฒนาแอปพลิเคชันบนอุปกรณ์เคลื่อนที่สำหรับทำนายคะแนนสีไข่แดงของไข่ไก่จากภาพถ่าย**
+**การพัฒนาแอปพลิเคชันบนอุปกรณ์เคลื่อนที่สำหรับทำนายคะแนนสีไข่แดงของไข่ไก่จากภาพถ่าย**  
 *Development of a Mobile Application for Predicting Egg Yolk Color Score from Photographs*
 
-โปรเจคปริญญานิพนธ์ สาขาวิชาวิทยาการคอมพิวเตอร์ ภาควิชาคอมพิวเตอร์ มหาวิทยาลัยศิลปากร
+โปรเจกต์ปริญญานิพนธ์ สาขาวิชาวิทยาการคอมพิวเตอร์ ภาควิชาคอมพิวเตอร์ มหาวิทยาลัยศิลปากร  
 ภาคการศึกษาต้น ปีการศึกษา 2569
 
 ---
 
-## ภาพรวม (Overview)
+## 📖 ภาพรวม (Overview)
 
-แอปพลิเคชันมือถือที่ทำนาย **คะแนนพัดสีไข่แดง (Yolk Color Fan, 1-15)** จากภาพถ่ายที่ผู้ใช้ถ่ายหรือเลือกจากคลังภาพ แทนการเทียบสีด้วยสายตามนุษย์หรือใช้เครื่องมือวัดค่าสีราคาสูงอย่าง Chromameter/Spectrophotometer
+แอปพลิเคชันและระบบประมวลผลสำหรับทำนาย **คะแนนพัดสีไข่แดง (DSM Yolk Color Fan ระดับ 1–15)** จากภาพถ่ายดิจิทัล แทนการเทียบสีด้วยสายตามนุษย์หรือการใช้เครื่องมือวัดค่าสีราคาสูงในห้องปฏิบัติการ
 
-แอป Flutter ครอบภาพเฉพาะบริเวณไข่แดงแล้ว**อัปโหลดไฟล์ภาพ**ไปยัง Backend ซึ่งสกัดค่าสี RGB เฉลี่ยและแปลงเป็นระบบสี CIELAB ด้วย Python ก่อนทำนายคะแนนด้วยแบบจำลอง Machine Learning โดยเปรียบเทียบแบบจำลอง 5 รูปแบบ (Linear Regression เป็น baseline ตามงานวิจัยต้นแบบ, Ridge Regression, Random Forest, Gradient Boosting, SVR — และอาจเพิ่ม Gaussian Process Regression เป็นตัวเสริม) ประเมินด้วย Stratified K-Fold Cross-Validation แล้วคัดเลือกตัวที่แม่นยำที่สุดไปใช้งานจริง
+ระบบใช้แนวทาง **Digital Image Processing (DIP)** สกัดค่าสีทางกายภาพ 6 มิติ (**RGB** และ **CIELAB** ตามมาตรฐานสากล CIE D65) พร้อมเทคนิค **Center Circular Masking (รัศมี 42%)** เพื่อคัดแยกและตัดพื้นหลังโต๊ะไม้ออก $100\%$ จากนั้นป้อนเข้าสู่แบบจำลองการเรียนรู้ของเครื่อง **Support Vector Regression (SVR with RBF Kernel)** ซึ่งให้ความแม่นยำสูงถึง **$Test\ R^2 = 0.9175$ ($91.75\%$)** และความคลาดเคลื่อนเฉลี่ย **$\text{MAE} = 0.6453$ ระดับพัดสี**
 
-**งานอ้างอิง:** "การวัดค่าสีไข่แดงของไข่ไก่จากภาพถ่ายด้วยสมการการถดถอยเชิงเส้นพหุคูณ" — The 10th Asia Undergraduate Conference on Computing (AUC2), 2022 (เป้าหมาย R² ≥ 0.7440 เทียบกับงานนี้)
+---
 
-## สถาปัตยกรรมระบบ
+## 🏗️ สถาปัตยกรรมระบบ (System Architecture)
 
 ```
-📱 Flutter App  ──(POST /predict-image, Multipart: cropped image file)──▶  🐍 FastAPI Backend
-                ◀──────(JSON: predicted_score, raw_score, rgb, cielab)──────
-
-Flutter: ถ่าย/เลือกภาพ → ครอบเฉพาะไข่แดง → อัปโหลดไฟล์ภาพไปที่ Backend
-Backend: รับภาพ → สกัด RGB เฉลี่ย (Python) → แปลงเป็น CIELAB (Python) → ยิงเข้าโมเดล ML
-         ที่เทรนไว้แล้ว → ส่งคะแนนทำนาย + ค่าสีที่สกัดได้กลับไปให้แอปแสดงผล
+📱 Flutter Mobile App / 🖥️ Web App
+       │
+       ▼ (POST /predict-image: Multipart Cropped Image)
+🐍 FastAPI Backend Server (egg_api)
+       │
+       ├─► 🎨 color_service.py (Center Circular Masking -> RGB & CIELAB Extraction)
+       ├─► 🧠 predict_service.py (StandardScaler -> SVR RBF Pipeline Model)
+       │
+       ▼ (JSON Response: predicted_score, raw_score, rgb, cielab, chroma, hue_angle)
+📱 แสดงผลลัพธ์บนหน้าจอ (ระดับพัดสี, ค่าสี RGB, Lab, Chroma, Hue Angle)
 ```
 
-> **หมายเหตุสถาปัตยกรรม:** ค่าสีทั้งหมด (RGB → CIELAB) คำนวณอยู่ที่ Backend (Python) เพียงจุดเดียว
-> ทั้งตอนเตรียมข้อมูลเทรนโมเดลและตอนใช้งานจริง — ใช้โค้ดชุดเดียวกัน ไม่มีสูตรสีซ้ำสองภาษาแล้ว
-> จึงไม่มีความเสี่ยงเรื่อง train/serve skew จากสูตรคำนวณไม่ตรงกัน (ไม่ต้องมี verification step
-> ข้ามภาษาแบบที่เคยออกแบบไว้ก่อนหน้านี้อีกต่อไป)
+---
 
-โมเดลเทรนแยกต่างหากใน `model_dev/` (ไม่ใช่ real-time) แล้วส่งไฟล์โมเดลที่ดีที่สุดเข้ามาให้ backend โหลดใช้งาน
+## 🛠️ เทคโนโลยีที่ใช้ (Tech Stack)
 
-## Tech Stack
-
-| ส่วน | เทคโนโลยี |
+| ส่วนของระบบ | เทคโนโลยีที่ใช้ |
 |---|---|
-| Mobile App | Flutter (Dart), รองรับ Android 8.0 (API 26)+ |
-| Backend API | FastAPI, Pydantic, **python-multipart** (รับไฟล์ภาพแบบ multipart/form-data) |
-| Image/Color processing | Pillow (PIL) + NumPy + scikit-image — โค้ดชุดเดียวใช้ทั้งใน `model_dev/` (เตรียมข้อมูลเทรน) และ `egg_api/` (ใช้งานจริง) |
-| Mobile-side | `image_cropper` (ครอบภาพ), `http`/`dio` (อัปโหลด multipart) — ไม่มีโค้ดคำนวณสีฝั่ง Dart แล้ว |
-| Machine Learning | scikit-learn (Linear Regression, Ridge, Random Forest, Gradient Boosting, SVR, Gaussian Process), joblib |
-| Model dev | Jupyter Lab |
+| **Mobile Application** | Flutter (Dart), `image_cropper` (Circular Crop Style), `http` |
+| **Web Interface** | HTML5, CSS3, JavaScript (Canvas Cropper Engine) |
+| **Backend API** | FastAPI, Uvicorn, Pydantic, Python-Multipart |
+| **Image & Color Processing** | Pillow (PIL), NumPy, scikit-image (CIE D65 Standard) |
+| **Machine Learning** | scikit-learn (SVR, Random Forest, Gradient Boosting, Linear Regression, Ridge), Joblib |
+| **Model Development** | Python 3.10+, Jupyter Notebook (`.ipynb`) |
 
-## โครงสร้างโปรเจค
+---
+
+## 📊 ผลการประเมินประสิทธิภาพโมเดล (Benchmark Results)
+
+ประเมินด้วยวิธี **Stratified 5-Fold Cross-Validation** (แบ่งตามสัดส่วนคลาส $80/20$ บนชุดข้อมูลภาพถ่ายจริง 647 ภาพ):
+
+```
+==========================================================================================
+MODEL TRAIN vs TEST COMPARISON RESULTS (Stratified 5-Fold Cross-Validation)
+==========================================================================================
+            Model  Train R2  Test R2  Train MAE  Test MAE  Train RMSE  Test RMSE
+ SVR (RBF Kernel)    0.9295   0.9175     0.5814    0.6453      0.7915     0.8532  🏆 ชนะเลิศ
+    Random Forest    0.9871   0.9087     0.2462    0.6485      0.3389     0.8923
+Gradient Boosting    0.9663   0.9063     0.4209    0.6621      0.5473     0.9038
+Linear Regression    0.8749   0.8718     0.8074    0.8136      1.0542     1.0645
+ Ridge Regression    0.8574   0.8545     0.8775    0.8835      1.1256     1.1355
+==========================================================================================
+
+Best Performing Model: SVR (RBF Kernel) (C=10.0, epsilon=0.1, R2 = 0.9175)
+```
+
+---
+
+## 📋 ตารางความแม่นยำรายคลาสของโมเดล SVR (Per-Class Breakdown)
+
+```
+==========================================================================================
+           Model  Class (Fan Score)  Samples  Mean Pred    MAE     RMSE
+------------------------------------------------------------------------------------------
+SVR (RBF Kernel)                  4       36       4.29   0.3437  0.6434
+SVR (RBF Kernel)                  5       41       5.48   0.7397  0.9146
+SVR (RBF Kernel)                  6       49       6.14   0.6864  0.8799
+SVR (RBF Kernel)                  7       42       7.29   0.7035  0.9421
+SVR (RBF Kernel)                  8       64       8.26   0.5288  0.6512
+SVR (RBF Kernel)                  9      105       9.06   0.6079  0.7664
+SVR (RBF Kernel)                 10       99      10.02   0.6547  0.8258
+SVR (RBF Kernel)                 11       75      10.77   0.6839  0.9368
+SVR (RBF Kernel)                 12       33      11.68   0.8708  1.1319
+SVR (RBF Kernel)                 13       21      12.66   0.9676  1.0728
+SVR (RBF Kernel)                 14       33      13.47   0.7329  0.9236
+SVR (RBF Kernel)                 15       49      14.61   0.5019  0.8145
+==========================================================================================
+```
+
+---
+
+## 📁 โครงสร้างโปรเจกต์ (Project Structure)
 
 ```
 egg_yolk_project/
-├── model_dev/                      # เทรน & เปรียบเทียบโมเดล (ไม่ deploy)
+├── model_dev/                      # การพัฒนา ฝึกสอน และประเมินโมเดล
 │   ├── data/
-│   │   ├── raw_images/             # ภาพไข่แดงที่ครอบแล้ว
+│   │   ├── raw_images/             # คลังภาพถ่ายไข่แดง
 │   │   ├── labels.csv              # image_filename, fan_score
-│   │   └── features.csv            # + R,G,B,L,a,b ที่สกัดแล้ว
-│   ├── color_service.py            # RGB→CIELAB (โค้ดเดียวกับใน egg_api/services/)
-│   ├── build_features.py
-│   ├── train_compare_models.ipynb
-│   ├── export_best_model.py
-│   └── model.pkl                    # โมเดลที่ดีที่สุด (generated)
+│   │   └── features.csv            # ฟีเจอร์สี 6 ตัวแปร (R, G, B, L*, a*, b*)
+│   ├── plots/                      # รูปภาพกราฟสถิติความละเอียดสูง (300 DPI)
+│   ├── color_service.py            # การสกัดสีด้วย Center Circular Masking
+│   ├── build_features.py           # สคริปต์สกัดฟีเจอร์ชุดใหญ่
+│   ├── train_compare_models.py     # เปรียบเทียบ 5 โมเดลด้วย 5-Fold CV
+│   ├── train_compare_models.ipynb  # สมุดบันทึก Jupyter Notebook
+│   ├── generate_all_plots.py       # สคริปต์สร้างรูปภาพกราฟประเมินผลทั้งหมด
+│   ├── export_best_model.py        # เทรนโมเดลตัวเต็มและส่งออก model.pkl
+│   └── model.pkl                   # ไฟล์สมองกล SVR Pipeline (40.5 KB)
 │
-├── egg_api/                         # Backend ที่ deploy จริง
-│   ├── main.py
-│   ├── schemas.py
-│   ├── routers/predict.py           # POST /predict-image
+├── egg_api/                        # Backend RESTful API Server
+│   ├── main.py                     # จุดเริ่มต้น FastAPI Server (เปิด /web, /docs)
+│   ├── schemas.py                  # Pydantic Data Models
+│   ├── web_app.html                # หน้าเว็บ Web App UI สำหรับทดสอบ
+│   ├── routers/predict.py          # Endpoint POST /predict-image
 │   ├── services/
-│   │   ├── color_service.py         # RGB extraction + CIELAB conversion (canonical copy)
-│   │   └── predict_service.py
-│   └── model/model.pkl              # copy จาก model_dev
+│   │   ├── color_service.py        # คำนวณ RGB, Lab, Chroma, Hue Angle
+│   │   └── predict_service.py      # โหลด model.pkl และทำนายผล
+│   └── model/model.pkl             # ไฟล์โมเดลที่ใช้งานจริง
 │
-└── egg_yolk_app/                     # Flutter mobile app
+└── egg_yolk_app/                   # Flutter Mobile Application
     └── lib/
         ├── main.dart
         ├── models/prediction_result.dart
-        ├── services/api_service.dart # อัปโหลดภาพแบบ multipart เท่านั้น
+        ├── services/api_service.dart
         └── screens/
             ├── splash_screen.dart
             ├── home_screen.dart
-            ├── camera_screen.dart
             ├── crop_screen.dart
             ├── result_screen.dart
             └── detail_screen.dart
 ```
 
-## เริ่มต้นใช้งาน (Getting Started)
+---
 
-### Prerequisites
-- Python 3.10+
-- Flutter SDK (stable channel) + Android Studio (สำหรับ Android SDK/emulator)
-- Git
+## 🚀 วิธีการติดตั้งและรันระบบ (Getting Started)
 
-### 1. Model development (`model_dev/`)
+### 1. สตาร์ต Backend API Server:
 ```bash
-cd model_dev
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+cd egg_yolk_project/egg_api
 pip install -r requirements.txt
-python build_features.py          # ต้องมี data/raw_images/ + data/labels.csv ก่อน
-jupyter lab train_compare_models.ipynb   # เทรน+เทียบโมเดล เลือกตัวที่ดีที่สุดเอง
-python export_best_model.py       # ได้ model.pkl
+uvicorn main:app --reload --port 8000
 ```
+* หน้าทดสอบ Web App: **[http://localhost:8000/web](http://localhost:8000/web)**
+* หน้าเอกสาร Swagger API: **[http://localhost:8000/docs](http://localhost:8000/docs)**
 
-### 2. Backend (`egg_api/`)
+### 2. รันแอปพลิเคชันมือถือ Flutter:
 ```bash
-cd egg_api
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-เช็คว่ารันอยู่: `curl http://localhost:8000/` ควรได้ `{"status": "ok"}`
-
-### 3. Mobile App (`egg_yolk_app/`)
-```bash
-cd egg_yolk_app
+cd egg_yolk_project/egg_yolk_app
 flutter pub get
-flutter run   # เลือก emulator/device
-```
-> หมายเหตุ: `api_service.dart` ตั้ง `baseUrl` เป็น `http://10.0.2.2:8000` (alias ของ localhost บน Android emulator) — ถ้าทดสอบบนมือถือจริง ต้องเปลี่ยนเป็น IP จริงของเครื่องที่รัน backend
-
-## API Reference
-
-**`POST /predict-image`** — รับไฟล์ภาพไข่แดงที่ครอบแล้ว คืนค่าสีที่สกัดได้และคะแนนทำนาย
-
-```bash
-curl -X POST http://localhost:8000/predict-image \
-  -F "file=@cropped_yolk.jpg"
+flutter run
 ```
 
-```json
-{
-  "predicted_score": 12,
-  "raw_score": 11.96,
-  "rgb": {"r": 226, "g": 131, "b": 23},
-  "cielab": {"l": 64.2, "a": 29.8, "b": 65.9}
-}
-```
+---
 
-## การประเมินโมเดล
+## 👥 ผู้จัดทำ
 
-เกณฑ์: R², MAE, RMSE, และสัดส่วนที่ทำนายคลาดเคลื่อนไม่เกิน 1 ระดับจากคะแนนจริง — เป้าหมาย **R² ≥ 0.7440**
-
-| Model | R² (mean ± sd) | MAE | RMSE | ±1 Level Accuracy |
-|---|---|---|---|---|
-| Linear Regression | – | – | – | – |
-| Ridge Regression | – | – | – | – |
-| Random Forest | – | – | – | – |
-| Gradient Boosting | – | – | – | – |
-| SVR | – | – | – | – |
-| Gaussian Process *(เสริม)* | – | – | – | – |
-
-*ประเมินด้วย Stratified 5-Fold CV (แบ่งตามช่วงคะแนน ไม่ใช่ train/test split ครั้งเดียว) — กรอกผลจริงหลังรัน `train_compare_models.ipynb`*
-
-## ขอบเขตและข้อจำกัด
-
-- รองรับเฉพาะภาพไข่แดงที่แยกออกจากไข่ขาวแล้ว ถ่ายภายใต้สภาพแสงที่เหมาะสม
-- ไม่ครอบคลุมการวิเคราะห์ภาพไข่ทั้งฟอง หรือการประเมินคุณภาพไข่ด้านอื่น
-- รองรับเฉพาะ Android (API 26+) ยังไม่รองรับ iOS
-- การสกัดค่าสีทั้งหมดอยู่ที่ Backend (Python) จุดเดียว — ภาพต้องอัปโหลดผ่านเครือข่ายทุกครั้งที่ทำนาย (ต่างจากแบบคำนวณในเครื่องที่ทำงานได้แม้ไม่มีอินเทอร์เน็ต)
-
-## สถานะโปรเจค
-
-**ยังไม่มีส่วนไหนถูกสร้าง/รันจริงเลย ณ ตอนนี้ — มีแค่ dataset กับไฟล์ planning (README + prompt pack)**
-
-- [x] เก็บ dataset (ภาพไข่แดง + คะแนนพัดสีจริง)
-- [ ] `color_service.py` (Python) + unit test
-- [ ] สร้าง `features.csv`
-- [ ] เทรน + เทียบโมเดล ≥3 แบบ
-- [ ] Export โมเดลที่ดีที่สุด
-- [ ] Backend: `services/color_service.py` (รับภาพ → RGB → CIELAB) ใน `egg_api/`
-- [ ] Backend: `POST /predict-image` endpoint รับภาพ ทำนายคะแนน
-- [ ] Flutter app ครบ flow (ถ่าย/ครอบ/อัปโหลดภาพ — ไม่ต้องคำนวณสีเอง)
-- [ ] รวมโมเดลจริงเข้า backend
-- [ ] Integration testing (smoke test)
-- [ ] เขียนเล่มปริญญานิพนธ์
-
-## ผู้จัดทำ
-
-- **ผู้รับผิดชอบโครงงาน:** นายพงศธรณ์ วิสูตรรุจิรา (660710723)
-- **อาจารย์ที่ปรึกษา:** ผู้ช่วยศาสตราจารย์ ดร.อรวรรณ เชาวลิต
+* **ผู้รับผิดชอบโครงงาน:** นายพงศธรณ์ วิสูตรรุจิรา (660710723)
+* **อาจารย์ที่ปรึกษา:** ผู้ช่วยศาสตราจารย์ ดร.อรวรรณ เชาวลิต
