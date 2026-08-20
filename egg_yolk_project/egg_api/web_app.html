@@ -2,84 +2,99 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🥚 Egg Yolk Color Predictor</title>
-  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ทำนายสีไข่แดง (Egg Yolk Color Predictor)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Kanit', sans-serif; }
-    body { background-color: #121212; color: #1a1a1a; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+    body { background: #0f1117; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
     
     .mobile-frame {
       width: 100%;
       max-width: 380px;
       height: 720px;
-      background-color: #111;
-      border-radius: 38px;
-      padding: 12px 9px;
-      box-shadow: 0 20px 45px -18px rgba(0,0,0,0.6);
-      display: flex;
-      flex-direction: column;
-      position: relative;
-    }
-    
-    .screen-area {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      border-radius: 26px;
+      background: #fff;
+      border-radius: 40px;
+      border: 8px solid #2d303e;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.6);
       overflow: hidden;
-      background: #ffffff;
       display: flex;
       flex-direction: column;
+      position: relative;
     }
 
     .home-bar {
-      width: 100px;
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
       height: 4px;
-      background: #333;
-      border-radius: 3px;
-      margin: 8px auto 2px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 2px;
+      z-index: 99;
     }
 
-    /* Screen styles */
+    .screen-area { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+    
+    /* Screen Styles */
     .screen-splash { background: #FFC93C; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; text-align: center; }
     .screen-home { background: #fff; height: 100%; display: flex; flex-direction: column; padding: 16px; }
-    .screen-crop { background: #2a2a2a; height: 100%; display: flex; flex-direction: column; color: #fff; position: relative; user-select: none; }
-    .screen-result { background: #FFC93C; height: 100%; display: flex; flex-direction: column; padding: 16px; color: #2b2100; }
-    .screen-detail { background: #fff; height: 100%; display: flex; flex-direction: column; padding: 16px; color: #1a1a1a; }
+    .screen-crop { background: #111; height: 100%; display: flex; flex-direction: column; color: #fff; position: relative; user-select: none; }
+    .screen-result { background: #FFC93C; height: 100%; display: flex; flex-direction: column; padding: 16px; color: #2b2100; overflow-y: auto; }
+    .screen-detail { background: #fff; height: 100%; display: flex; flex-direction: column; padding: 16px; color: #1a1a1a; overflow-y: auto; }
 
     /* Buttons */
-    .btn-dark { background: #1a1a1a; color: #fff; padding: 11px; border-radius: 20px; text-align: center; font-size: 13px; font-weight: 600; cursor: pointer; border: none; width: 100%; }
-    .btn-outline { background: #fff; color: #1a1a1a; border: 1.5px solid #1a1a1a; padding: 10px; border-radius: 20px; text-align: center; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; }
+    .btn-dark { background: #1a1a1a; color: #fff; padding: 12px; border-radius: 24px; text-align: center; font-size: 14px; font-weight: 600; cursor: pointer; border: none; width: 100%; transition: all 0.2s; }
+    .btn-dark:hover { background: #333; }
+    .btn-outline { background: #fff; color: #1a1a1a; border: 1.5px solid #1a1a1a; padding: 11px; border-radius: 24px; text-align: center; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; transition: all 0.2s; }
+    .btn-outline:hover { background: #f5f5f5; }
     
     #fileInput { display: none; }
 
-    /* Circular Cropper Box */
+    /* Circular Cropper Container */
     .crop-circle-mask {
       position: absolute;
-      width: 150px;
-      height: 150px;
-      top: 30%;
-      left: 30%;
+      width: 160px;
+      height: 160px;
+      top: calc(50% - 80px);
+      left: calc(50% - 80px);
       border-radius: 50%;
       border: 3px dashed #FFC93C;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65);
-      cursor: move;
+      background: rgba(255, 201, 60, 0.18);
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.78);
+      cursor: grab;
       touch-action: none;
     }
-    
+    .crop-circle-mask:active {
+      cursor: grabbing;
+    }
+
+    /* 4 Corner Handles with Big Touch Hitbox */
     .crop-handle {
       position: absolute;
-      width: 14px;
-      height: 14px;
-      background: #FFC93C;
-      border: 2px solid #fff;
-      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 25;
     }
-    .handle-tl { top: -4px; left: -4px; cursor: nwse-resize; }
-    .handle-tr { top: -4px; right: -4px; cursor: nesw-resize; }
-    .handle-bl { bottom: -4px; left: -4px; cursor: nesw-resize; }
-    .handle-br { bottom: -4px; right: -4px; cursor: nwse-resize; }
+    .handle-dot {
+      width: 15px;
+      height: 15px;
+      background: #FFC93C;
+      border: 2.5px solid #fff;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.8);
+      pointer-events: none;
+    }
+    .handle-tl { top: -14px; left: -14px; cursor: nwse-resize; }
+    .handle-tr { top: -14px; right: -14px; cursor: nesw-resize; }
+    .handle-bl { bottom: -14px; left: -14px; cursor: nesw-resize; }
+    .handle-br { bottom: -14px; right: -14px; cursor: nwse-resize; }
   </style>
 </head>
 <body>
@@ -109,10 +124,10 @@
     let selectedFile = null;
     let croppedBlobFile = null;
     let resultData = {
-      predicted_score: 12,
-      raw_score: 11.96,
-      rgb: { r: 226, g: 131, b: 23 },
-      cielab: { l: 64, a: 30, b: 66 }
+      predicted_score: 15,
+      raw_score: 14.85,
+      rgb: { r: 206, g: 95, b: 23 },
+      cielab: { l: 53, a: 40, b: 57, chroma: 69.6, hue_angle: 54.6 }
     };
 
     const yolkSvg = (s) => `<svg viewBox="0 0 120 120" width="${s}" height="${s}"><ellipse cx="60" cy="66" rx="54" ry="40" fill="#fff" stroke="#ecdfc0" stroke-width="2"/><circle cx="58" cy="58" r="27" fill="url(#yolkGrad)"/></svg>`;
@@ -149,24 +164,24 @@
       } else if (state === 'crop') {
         screen.innerHTML = `
           <div class="screen-crop">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;font-size:13px;z-index:10;background:rgba(0,0,0,0.5)">
-              <span onclick="goTo('home')" style="cursor:pointer">✕</span>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;font-size:13px;z-index:10;background:rgba(0,0,0,0.6)">
+              <span onclick="goTo('home')" style="cursor:pointer;font-size:16px;padding:4px 8px">✕</span>
               <span style="font-weight:600">เลื่อนวงกลมครอบเฉพาะไข่แดง</span>
-              <span onclick="confirmCrop()" style="cursor:pointer;font-weight:700;color:#FFC93C">✓</span>
+              <span onclick="confirmCrop()" style="cursor:pointer;font-weight:700;color:#FFC93C;font-size:18px;padding:4px 8px">✓</span>
             </div>
-            <div style="flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center" id="cropCanvas">
-              ${selectedImageSrc ? `<img id="sourceImage" src="${selectedImageSrc}" style="max-width:100%;max-height:100%;object-fit:contain">` : yolkSvg(140)}
+            <div style="flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000" id="cropCanvas">
+              ${selectedImageSrc ? `<img id="sourceImage" src="${selectedImageSrc}" style="max-width:100%;max-height:100%;object-fit:contain;pointer-events:none">` : yolkSvg(140)}
               
-              <!-- Circular Cropper Box -->
+              <!-- Circular Cropper Box with 4 Handles -->
               <div class="crop-circle-mask" id="cropCircle">
-                <div class="crop-handle handle-tl"></div>
-                <div class="crop-handle handle-tr"></div>
-                <div class="crop-handle handle-bl"></div>
-                <div class="crop-handle handle-br"></div>
+                <div class="crop-handle handle-tl" data-handle="tl"><div class="handle-dot"></div></div>
+                <div class="crop-handle handle-tr" data-handle="tr"><div class="handle-dot"></div></div>
+                <div class="crop-handle handle-bl" data-handle="bl"><div class="handle-dot"></div></div>
+                <div class="crop-handle handle-br" data-handle="br"><div class="handle-dot"></div></div>
               </div>
             </div>
-            <div style="padding:10px;text-align:center;font-size:11px;color:#aaa;background:rgba(0,0,0,0.7);z-index:10">
-              💡 คุณสามารถลากย้ายตำแหน่งวงกลมและย่อ/ขยายได้ตามต้องการ
+            <div style="padding:12px;text-align:center;font-size:12px;color:#bbb;background:rgba(0,0,0,0.8);z-index:10">
+              💡 ดึงปุ่มมุมทั้ง 4 ด้านเพื่อยืดเข้า-ออก | ลากตรงกลางเพื่อเลื่อนตำแหน่ง
             </div>
           </div>
         `;
@@ -199,8 +214,8 @@
               </div>
               <div style="width:100%;font-size:12px;color:#3a2e00;font-weight:600;margin-top:4px">คะแนนสีของไข่แดง :</div>
               <div style="width:100%;background:#202124;color:#fff;border-radius:12px;padding:12px;text-align:center">
-                <div style="font-size:32px;font-weight:700">${resultData.predicted_score}</div>
-                <div style="font-size:11px;color:#888">Raw Score: ${resultData.raw_score.toFixed(2)}</div>
+                <div style="font-size:36px;font-weight:700;line-height:1.1">${resultData.predicted_score}</div>
+                <div style="font-size:11px;color:#888;margin-top:2px">Raw Score: ${resultData.raw_score.toFixed(2)}</div>
               </div>
               <div onclick="goTo('detail')" style="cursor:pointer;font-size:12px;color:#2b2100;text-decoration:underline;margin:4px 0">รายละเอียดเพิ่มเติม &gt;&gt;</div>
               <div style="flex:1"></div>
@@ -212,7 +227,7 @@
         screen.innerHTML = `
           <div class="screen-detail">
             <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:14px">
-              <span onclick="goTo('result')" style="cursor:pointer;font-size:20px">‹</span> Detail
+              <span onclick="goTo('result')" style="cursor:pointer;font-size:22px;padding:2px 6px">‹</span> Detail
             </div>
             <div style="display:flex;flex-direction:column;gap:16px;font-size:13px;line-height:1.5">
               <div>
@@ -233,7 +248,7 @@
               </div>
               <div>
                 <div style="font-weight:700;color:#1a1a1a">ค่าคะแนนสีของไข่</div>
-                <div style="color:#444;font-weight:700;font-size:16px">${resultData.predicted_score}</div>
+                <div style="color:#444;font-weight:700;font-size:18px">${resultData.predicted_score}</div>
               </div>
               <div>
                 <div style="font-weight:700;color:#1a1a1a">รายละเอียด</div>
@@ -251,42 +266,86 @@
         const canvas = document.getElementById('cropCanvas');
         if (!circle || !canvas) return;
 
-        let isDragging = false;
-        let isResizing = false;
-        let startX, startY, startLeft, startTop, startWidth, startHeight;
+        let mode = 'none'; // 'drag' | 'tl' | 'tr' | 'bl' | 'br'
+        let startX = 0, startY = 0;
+        let startL = 0, startT = 0, startW = 0;
 
-        circle.addEventListener('mousedown', (e) => {
-          if (e.target.classList.contains('crop-handle')) {
-            isResizing = true;
-          } else {
-            isDragging = true;
+        function getPos(e) {
+          if (e.touches && e.touches.length > 0) {
+            return { x: e.touches[0].clientX, y: e.touches[0].clientY };
           }
-          startX = e.clientX;
-          startY = e.clientY;
-          startLeft = circle.offsetLeft;
-          startTop = circle.offsetTop;
-          startWidth = circle.offsetWidth;
-          startHeight = circle.offsetHeight;
-        });
+          return { x: e.clientX, y: e.clientY };
+        }
 
-        window.addEventListener('mousemove', (e) => {
-          if (isDragging) {
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
-            circle.style.left = (startLeft + dx) + 'px';
-            circle.style.top = (startTop + dy) + 'px';
-          } else if (isResizing) {
-            const dx = e.clientX - startX;
-            const newSize = Math.max(50, startWidth + dx);
+        function onStart(e) {
+          const p = getPos(e);
+          const handle = e.target.closest('.crop-handle');
+
+          startX = p.x;
+          startY = p.y;
+          startL = circle.offsetLeft;
+          startT = circle.offsetTop;
+          startW = circle.offsetWidth;
+
+          if (handle) {
+            mode = handle.getAttribute('data-handle');
+          } else {
+            mode = 'drag';
+          }
+          
+          e.preventDefault();
+        }
+
+        function onMove(e) {
+          if (mode === 'none') return;
+          const p = getPos(e);
+          const dx = p.x - startX;
+          const dy = p.y - startY;
+
+          if (mode === 'drag') {
+            const maxL = canvas.clientWidth - circle.offsetWidth;
+            const maxT = canvas.clientHeight - circle.offsetHeight;
+            circle.style.left = Math.max(0, Math.min(maxL, startL + dx)) + 'px';
+            circle.style.top = Math.max(0, Math.min(maxT, startT + dy)) + 'px';
+          } else {
+            // Directional Corner Resizing
+            let delta = 0;
+            if (mode === 'br') delta = (dx + dy) / 2;
+            else if (mode === 'tl') delta = (-dx - dy) / 2;
+            else if (mode === 'tr') delta = (dx - dy) / 2;
+            else if (mode === 'bl') delta = (-dx + dy) / 2;
+
+            const minSize = 40;
+            const maxSize = Math.min(canvas.clientWidth, canvas.clientHeight) - 10;
+            const newSize = Math.max(minSize, Math.min(maxSize, startW + delta * 2));
+            const sizeDiff = newSize - startW;
+
+            if (mode === 'tl') {
+              circle.style.left = (startL - sizeDiff) + 'px';
+              circle.style.top = (startT - sizeDiff) + 'px';
+            } else if (mode === 'tr') {
+              circle.style.top = (startT - sizeDiff) + 'px';
+            } else if (mode === 'bl') {
+              circle.style.left = (startL - sizeDiff) + 'px';
+            }
+
             circle.style.width = newSize + 'px';
             circle.style.height = newSize + 'px';
           }
-        });
+          e.preventDefault();
+        }
 
-        window.addEventListener('mouseup', () => {
-          isDragging = false;
-          isResizing = false;
-        });
+        function onEnd() {
+          mode = 'none';
+        }
+
+        circle.addEventListener('mousedown', onStart);
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onEnd);
+
+        circle.addEventListener('touchstart', onStart, { passive: false });
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onEnd);
       }, 50);
     }
 
@@ -317,7 +376,6 @@
       const circle = document.getElementById('cropCircle');
 
       if (imgElem && circle) {
-        // Perform real HTML5 Canvas cropping of ONLY the circle mask region!
         const imgRect = imgElem.getBoundingClientRect();
         const circleRect = circle.getBoundingClientRect();
 
@@ -333,12 +391,9 @@
         canvas.width = cropWidth;
         canvas.height = cropHeight;
         const ctx = canvas.getContext('2d');
-        
-        ctx.drawImage(imgElem, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-        
-        selectedImageSrc = canvas.toDataURL('image/jpeg');
 
-        // Convert canvas to Blob file for real upload
+        ctx.drawImage(imgElem, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
         await new Promise((resolve) => {
           canvas.toBlob((blob) => {
             croppedBlobFile = new File([blob], 'cropped_yolk.jpg', { type: 'image/jpeg' });
@@ -348,29 +403,33 @@
       }
 
       const uploadFile = croppedBlobFile || selectedFile;
-
       if (uploadFile) {
         const formData = new FormData();
         formData.append('file', uploadFile, 'cropped_yolk.jpg');
 
         try {
-          const apiHost = window.location.hostname || 'localhost';
-          const response = await fetch(`http://${apiHost}:8000/predict-image`, {
+          const res = await fetch('/predict-image', {
             method: 'POST',
             body: formData
           });
 
-          if (response.ok) {
-            resultData = await response.json();
+          if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.detail || 'Failed to predict');
           }
-        } catch (e) {
-          console.log('API error, using local predictions');
-        }
-      }
 
-      goTo('result');
+          const data = await res.json();
+          resultData = data;
+          goTo('result');
+        } catch (err) {
+          alert('เกิดข้อผิดพลาดในการทำนาย: ' + err.message);
+        }
+      } else {
+        goTo('result');
+      }
     }
 
+    // Start App
     renderScreen();
   </script>
 </body>

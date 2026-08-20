@@ -72,7 +72,7 @@ def build_dataset_and_features():
                 'b': features['b'],
                 'l': features['l'],
                 'a': features['a'],
-                'b_lab': features['b']
+                'b_lab': features['b_lab']
             })
 
             total_images += 1

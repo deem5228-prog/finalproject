@@ -1,10 +1,11 @@
 """
-Color Service Module
-Extracts average RGB values from egg yolk cropped images
-and converts RGB to CIELAB (L*, a*, b*) color space.
+Color Service Module (FastAPI Backend)
+Extracts average RGB values from egg yolk images using Center Circular Masking (R=42%)
+and converts RGB to CIELAB (L*, a*, b*) color space, Chroma, and Hue angle.
 """
 
 import io
+import math
 import numpy as np
 from PIL import Image
 from skimage.color import rgb2lab
@@ -12,7 +13,7 @@ from skimage.color import rgb2lab
 
 def extract_mean_rgb(image_input):
     """
-    Extract average R, G, B values from an image.
+    Extract average R, G, B values from pure yolk region using Center Circular Masking (R=42%).
     
     :param image_input: str/Path (file path), bytes, or PIL.Image object
     :return: dict with 'r', 'g', 'b' (rounded floats 0-255)
@@ -31,10 +32,16 @@ def extract_mean_rgb(image_input):
     img_rgb = img.convert('RGB')
     np_img = np.array(img_rgb)
 
-    # Compute mean R, G, B values (provides highest R^2 = 0.9056 for SVR model)
-    mean_r = float(np.mean(np_img[:, :, 0]))
-    mean_g = float(np.mean(np_img[:, :, 1]))
-    mean_b = float(np.mean(np_img[:, :, 2]))
+    # Center Circular Masking (Radius = 42% of min dimension to eliminate 4 background corners)
+    h, w, _ = np_img.shape
+    cy, cx = h // 2, w // 2
+    radius = int(min(h, w) * 0.42)
+    y_coords, x_coords = np.ogrid[:h, :w]
+    mask = (x_coords - cx)**2 + (y_coords - cy)**2 <= radius**2
+
+    mean_r = float(np.mean(np_img[:, :, 0][mask]))
+    mean_g = float(np.mean(np_img[:, :, 1][mask]))
+    mean_b = float(np.mean(np_img[:, :, 2][mask]))
 
     return {
         'r': round(mean_r, 2),
@@ -60,48 +67,41 @@ def rgb_to_cielab(r: float, g: float, b: float):
     a_val = float(lab_arr[1])
     b_val = float(lab_arr[2])
 
-    # Compute Chroma (C*) = sqrt(a*^2 + b*^2)
-    chroma = float(np.sqrt(a_val**2 + b_val**2))
-
-    # Compute Hue Angle (h°) = arctan2(b*, a*) in degrees (0 to 360)
-    hue_rad = np.arctan2(b_val, a_val)
-    hue_deg = float(np.degrees(hue_rad))
-    if hue_deg < 0:
-        hue_deg += 360.0
-
     return {
         'l': round(l_val, 2),
         'a': round(a_val, 2),
-        'b': round(b_val, 2),
-        'chroma': round(chroma, 2),
-        'hue_angle': round(hue_deg, 2)
+        'b': round(b_val, 2)
     }
+
+
+def calculate_chroma_and_hue(a: float, b: float):
+    """
+    Calculate Chroma (C*) and Hue Angle (h in degrees) from CIELAB a* and b*.
+    """
+    chroma = math.sqrt(a**2 + b**2)
+    hue_rad = math.atan2(b, a)
+    hue_deg = math.degrees(hue_rad)
+    if hue_deg < 0:
+        hue_deg += 360.0
+    return round(chroma, 2), round(hue_deg, 2)
 
 
 def extract_color_features(image_input):
     """
-    Extract both RGB and CIELAB color features from an image.
-    
-    :param image_input: str/Path (file path), bytes, or PIL.Image object
-    :return: dict containing r, g, b, l, a, b
+    Extract both RGB, CIELAB, Chroma, and Hue color features from an image.
     """
     rgb = extract_mean_rgb(image_input)
     lab = rgb_to_cielab(rgb['r'], rgb['g'], rgb['b'])
+    chroma, hue = calculate_chroma_and_hue(lab['a'], lab['b'])
+    
     return {
         'r': rgb['r'],
         'g': rgb['g'],
         'b': rgb['b'],
         'l': lab['l'],
         'a': lab['a'],
-        'b': lab['b'],
-        'chroma': lab['chroma'],
-        'hue_angle': lab['hue_angle']
+        'b_lab': lab['b'],
+        'chroma': chroma,
+        'hue': hue,
+        'hue_angle': hue
     }
-
-
-if __name__ == '__main__':
-    # Simple test run
-    test_rgb = extract_mean_rgb(Image.new('RGB', (100, 100), color=(226, 131, 23)))
-    test_lab = rgb_to_cielab(test_rgb['r'], test_rgb['g'], test_rgb['b'])
-    print("Test RGB:", test_rgb)
-    print("Test CIELAB:", test_lab)

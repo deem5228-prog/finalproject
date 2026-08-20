@@ -43,7 +43,7 @@ async def predict_image(file: UploadFile = File(...)):
             b=color_feats['b'],
             l=color_feats['l'],
             a=color_feats['a'],
-            b_lab=color_feats['b']
+            b_lab=color_feats['b_lab']
         )
 
         return PredictionResponse(
@@ -57,7 +57,7 @@ async def predict_image(file: UploadFile = File(...)):
             cielab=CIELABResponse(
                 l=color_feats['l'],
                 a=color_feats['a'],
-                b=color_feats['b'],
+                b=color_feats['b_lab'],
                 chroma=color_feats['chroma'],
                 hue_angle=color_feats['hue_angle']
             )

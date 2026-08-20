@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+data/raw_images/
+plots/
+generate_feature_plots.py
+generate_plots.py
+plot_detailed_tube_count.py
+plot_real_svr_visual.py
+*.log

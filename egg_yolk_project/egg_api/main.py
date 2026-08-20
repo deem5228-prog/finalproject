@@ -3,7 +3,9 @@ Main FastAPI Application
 Egg Yolk Color Predictor Backend Service
 """
 
+import os
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from routers import predict
 
@@ -34,6 +36,17 @@ async def root():
     return {"status": "ok", "service": "Egg Yolk Color Predictor API"}
 
 
+@app.get("/web", tags=["Web Interface"])
+async def web_ui():
+    """
+    Serve Web App UI interface.
+    """
+    web_app_path = os.path.join(os.path.dirname(__file__), "web_app.html")
+    return FileResponse(web_app_path)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
+

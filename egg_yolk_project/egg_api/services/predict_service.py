@@ -17,7 +17,6 @@ class PredictService:
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file not found at: {model_path}")
 
-        print(f"Loading ML model from: {model_path}")
         self.model = joblib.load(model_path)
 
     def predict(self, r: float, g: float, b: float, l: float, a: float, b_lab: float):
@@ -36,12 +35,5 @@ class PredictService:
         return predicted_score, round(raw_score, 2)
 
 
-# Singleton instance for API reuse
-predict_service_instance = None
-
-
 def get_predict_service() -> PredictService:
-    global predict_service_instance
-    if predict_service_instance is None:
-        predict_service_instance = PredictService()
-    return predict_service_instance
+    return PredictService()
