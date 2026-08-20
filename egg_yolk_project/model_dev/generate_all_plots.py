@@ -178,8 +178,13 @@ plt.title('Residuals (Prediction Error) Distribution - SVR Model', fontsize=13, 
 plt.xlabel('Residual Error (Predicted - Actual)', fontsize=11, fontweight='bold')
 plt.ylabel('Sample Count (Frequency)', fontsize=11, fontweight='bold')
 
-res_text = f"Mean Error: {np.mean(residuals):.3f}\nStd Dev (σ): {np.std(residuals):.3f}\nWithin ±1.0 Fan Score: {np.mean(np.abs(residuals) <= 1.0)*100:.1f}%"
-plt.text(0.70, 0.75, res_text, transform=plt.gca().transAxes, fontsize=11,
+res_text = (
+    f"Mean Error: {np.mean(residuals):.3f}\n"
+    f"Std Dev (σ): {np.std(residuals):.3f}\n"
+    f"Continuous Error (≤ ±1.0): {np.mean(np.abs(residuals) <= 1.0)*100:.1f}%\n"
+    f"Rounded Level (≤ ±1 Level): {np.mean(np.abs(np.round(all_y_pred_svr) - all_y_true) <= 1)*100:.1f}%"
+)
+plt.text(0.60, 0.72, res_text, transform=plt.gca().transAxes, fontsize=10.5,
          bbox=dict(boxstyle='round,pad=0.5', facecolor='#ECFDF5', edgecolor='#10B981', alpha=0.95))
 
 plt.legend(loc='upper left', frameon=True)
