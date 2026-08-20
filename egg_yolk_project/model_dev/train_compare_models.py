@@ -57,16 +57,11 @@ def evaluate_models():
     }
 
     comparison_results = []
-    per_class_results = []
-    classes = sorted(np.unique(y))
 
     for name, pipeline in models.items():
         tr_r2, te_r2 = [], []
         tr_mae, te_mae = [], []
         tr_rmse, te_rmse = [], []
-        tr_acc1, te_acc1 = [], []
-
-        all_true, all_pred = [], []
 
         for train_idx, val_idx in skf.split(X, y):
             X_tr, y_tr = X[train_idx], y[train_idx]
@@ -79,17 +74,12 @@ def evaluate_models():
             tr_r2.append(r2_score(y_tr, p_tr))
             tr_mae.append(mean_absolute_error(y_tr, p_tr))
             tr_rmse.append(np.sqrt(mean_squared_error(y_tr, p_tr)))
-            tr_acc1.append(np.mean(np.abs(p_tr - y_tr) <= 1.0) * 100.0)
 
             # Predict Test (Validation)
             p_te = pipeline.predict(X_te)
             te_r2.append(r2_score(y_te, p_te))
             te_mae.append(mean_absolute_error(y_te, p_te))
             te_rmse.append(np.sqrt(mean_squared_error(y_te, p_te)))
-            te_acc1.append(np.mean(np.abs(p_te - y_te) <= 1.0) * 100.0)
-
-            all_true.extend(y_te)
-            all_pred.extend(p_te)
 
         comparison_results.append({
             'Model': name,
@@ -98,31 +88,10 @@ def evaluate_models():
             'Train MAE': round(np.mean(tr_mae), 4),
             'Test MAE': round(np.mean(te_mae), 4),
             'Train RMSE': round(np.mean(tr_rmse), 4),
-            'Test RMSE': round(np.mean(te_rmse), 4),
-            'Train +/-1 Acc (%)': f"{np.mean(tr_acc1):.1f}%",
-            'Test +/-1 Acc (%)': f"{np.mean(te_acc1):.1f}%"
+            'Test RMSE': round(np.mean(te_rmse), 4)
         })
 
-        # Calculate per-class metrics on Test set
-        all_true = np.array(all_true)
-        all_pred = np.array(all_pred)
-        rounded_pred = np.round(all_pred).astype(int)
-
-        for c in classes:
-            mask = (all_true == c)
-            exact_acc = np.mean(rounded_pred[mask] == c) * 100.0
-            pm1_acc = np.mean(np.abs(all_pred[mask] - c) <= 1.0) * 100.0
-            
-            per_class_results.append({
-                'Model': name,
-                'Class (Fan Score)': c,
-                'Samples': int(np.sum(mask)),
-                'Exact Acc (%)': round(exact_acc, 1),
-                '+/-1 Acc (%)': round(pm1_acc, 1)
-            })
-
     res_df = pd.DataFrame(comparison_results).sort_values(by='Test R2', ascending=False)
-    per_class_df = pd.DataFrame(per_class_results)
 
     print("\n" + "=" * 90)
     print("MODEL TRAIN vs TEST COMPARISON RESULTS (Stratified 5-Fold Cross-Validation)")
@@ -133,11 +102,7 @@ def evaluate_models():
     best_model_name = res_df.iloc[0]['Model']
     print(f"\nBest Performing Model: {best_model_name} (Test R^2 = {res_df.iloc[0]['Test R2']:.4f})")
 
-    print(f"\n\n=== PER-CLASS ACCURACY BREAKDOWN FOR TOP MODEL ({best_model_name}) ===")
-    print(per_class_df[per_class_df['Model'] == best_model_name].to_string(index=False))
-    print("=" * 90)
-
-    return res_df, per_class_df
+    return res_df
 
 
 if __name__ == '__main__':
