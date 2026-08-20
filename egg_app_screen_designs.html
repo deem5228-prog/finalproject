@@ -1,0 +1,111 @@
+<style>
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+</style>
+<h2 class="sr-only">มือถือจำลอง 5 หน้าจอของแอปทำนายสีไข่แดง: splash, home, crop, result, detail พร้อมคำอธิบายองค์ประกอบแต่ละหน้า</h2>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<radialGradient id="yolkGrad" cx="35%" cy="30%" r="75%">
+<stop offset="0%" stop-color="#FFD35C"/>
+<stop offset="55%" stop-color="#FBA919"/>
+<stop offset="100%" stop-color="#E1740A"/>
+</radialGradient>
+</defs>
+</svg>
+
+<div style="display:flex;flex-direction:column;gap:10px;padding:0.5rem 0">
+<div class="flow-track" id="flowTrack" style="display:flex;align-items:center;gap:3px;flex-wrap:wrap;justify-content:center;font-size:11px;color:var(--text-muted)"></div>
+
+<div style="display:flex;justify-content:center;">
+<div style="background:#111;border-radius:38px;padding:12px 9px;box-shadow:0 20px 45px -18px rgba(0,0,0,.45)">
+<div style="position:relative;width:250px;height:480px;border-radius:26px;overflow:hidden" id="screen"></div>
+<div style="width:100px;height:4px;background:#111;border-radius:3px;margin:9px auto 0"></div>
+</div>
+</div>
+
+<div id="specBox" style="background:var(--surface-1);border:1px solid var(--border);border-radius:12px;padding:14px 16px;font-size:12.5px;color:var(--text-secondary);line-height:1.7;max-width:520px;margin:0 auto;width:100%"></div>
+</div>
+
+<script>
+const FLOW=[{id:'splash',label:'Splash'},{id:'home',label:'Home'},{id:'crop',label:'Crop'},{id:'result',label:'Result'},{id:'detail',label:'Detail'}];
+let state='splash';
+const yolk=(s)=>`<svg viewBox="0 0 120 120" width="${s}" height="${s}"><ellipse cx="60" cy="66" rx="54" ry="40" fill="#fff" stroke="#ecdfc0" stroke-width="2"/><circle cx="58" cy="58" r="27" fill="url(#yolkGrad)"/></svg>`;
+
+const SPECS = {
+splash:{file:'splash_screen.dart',bg:'#FFC93C (เหลือง)',elements:['ไอคอนไข่ตรงกลาง + ข้อความ "ทำนายสีไข่แดง"','ปุ่มดำ "เริ่ม" กดแล้ว pushReplacement ไป home (กันกดย้อนกลับมาหน้านี้)']},
+home:{file:'home_screen.dart',bg:'ขาว',elements:['AppBar หัวข้อ "วิธีใช้"','3 บรรทัดอธิบายขั้นตอนการใช้งาน (เลือกภาพ → รอวิเคราะห์ → ดูผล)','ปุ่มทึบ "ถ่ายรูป" + ปุ่มขอบ "คลังรูปภาพ" ด้านล่าง']},
+crop:{file:'crop_screen.dart',bg:'พื้นเทาเข้ม + AppBar โปร่งใส',elements:['✕ ยกเลิก ซ้าย / ✓ ยืนยัน ขวา บน AppBar','กรอบสี่เหลี่ยมจัตุรัส + เส้นกริด 3x3 ทับรูปไข่แดง ให้ลาก/ซูมเลือกเฉพาะไข่แดง','มุมกรอบ 4 มุมมี handle ให้ปรับขนาด']},
+result:{file:'result_screen.dart',bg:'#FFC93C (เหลือง) เหมือน splash',elements:['AppBar โปร่งใส หัวข้อ "ค่าสีของไข่แดง"','รูปไข่แดงที่ตัดแล้ว (thumbnail กลม/เหลี่ยมมน)','2 กล่องดำคู่กัน: RGB (ซ้าย) / Lab (ขวา)','กล่องดำใหญ่ตัวเลขคะแนนสีขาว (คะแนนพัดสี)','ลิงก์ "รายละเอียดเพิ่มเติม >>" กดไป detail','ปุ่ม "Back" กลับ home']},
+detail:{file:'detail_screen.dart',bg:'ขาว',elements:['AppBar มีปุ่มย้อนกลับ (‹) หัวข้อ "Detail"','แถวข้อมูล: ค่าสี RGB / ค่าสี Lab / คะแนนสีของไข่ (label หนา + ค่าใต้)','ย่อหน้าอธิบายความหมายของคะแนนระดับนั้นๆ']},
+};
+
+function renderSpec(){
+  const s = SPECS[state];
+  document.getElementById('specBox').innerHTML = `
+    <div style="font-weight:600;color:var(--text-primary);margin-bottom:6px;font-family:var(--font-mono);font-size:12px">${s.file}</div>
+    <div style="margin-bottom:8px"><span style="color:var(--text-muted)">พื้นหลัง:</span> ${s.bg}</div>
+    <ul style="margin:0;padding-left:18px">${s.elements.map(e=>`<li style="margin-bottom:4px">${e}</li>`).join('')}</ul>
+  `;
+}
+
+function renderTrack(){
+  document.getElementById('flowTrack').innerHTML = FLOW.map((s,i)=>`
+    ${i>0?'<span style="color:var(--text-muted)">›</span>':''}
+    <span onclick="goTo('${s.id}')" style="cursor:pointer;padding:4px 10px;border-radius:20px;border:1px solid ${s.id===state?'var(--text-primary)':'var(--border)'};background:${s.id===state?'var(--text-primary)':'var(--surface-1)'};color:${s.id===state?'var(--surface-1)':'var(--text-secondary)'};font-weight:${s.id===state?'600':'400'}">${s.label}</span>
+  `).join('');
+}
+
+const R = {
+splash:()=>`<div style="background:#FFC93C;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px">
+  ${yolk(70)}<div style="font-size:17px;font-weight:700;color:#2b2100">ทำนายสีไข่แดง</div>
+  <div onclick="goTo('home')" style="cursor:pointer;background:#1a1a1a;color:#fff;font-size:13px;padding:10px 38px;border-radius:20px">เริ่ม</div></div>`,
+home:()=>`<div style="background:#fff;height:100%;display:flex;flex-direction:column">
+  <div style="padding:16px 16px 8px;font-weight:600;font-size:14px;color:#1a1a1a">วิธีใช้</div>
+  <div style="padding:4px 18px;display:flex;flex-direction:column;gap:10px;font-size:12px;color:#333">
+    <div>1. เลือกวิธีนำเข้าภาพจากการถ่ายรูปหรือคลังรูปภาพ</div>
+    <div>2. รอระบบวิเคราะห์</div>
+    <div>3. เมื่อวิเคราะห์เสร็จจะปรากฏคะแนนสีของไข่แดง</div>
+  </div>
+  <div style="flex:1"></div>
+  <div style="padding:16px;display:flex;flex-direction:column;gap:9px">
+    <div onclick="goTo('crop')" style="cursor:pointer;background:#1a1a1a;color:#fff;font-size:12px;padding:11px;border-radius:20px;text-align:center">📷 ถ่ายรูป</div>
+    <div onclick="goTo('crop')" style="cursor:pointer;background:#fff;color:#1a1a1a;border:1.5px solid #1a1a1a;font-size:12px;padding:10px;border-radius:20px;text-align:center">🖼 คลังรูปภาพ</div>
+  </div></div>`,
+crop:()=>`<div style="background:#2a2a2a;height:100%;display:flex;flex-direction:column">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;color:#fff;font-size:12px">
+    <span onclick="goTo('home')" style="cursor:pointer">✕</span><span>เลือกขนาดไข่แดง</span><span onclick="goTo('result')" style="cursor:pointer;font-weight:700">✓</span>
+  </div>
+  <div style="flex:1;margin:0 16px 16px;border-radius:12px;background:#3a3a3a;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center">
+    ${yolk(110)}
+    <div style="position:absolute;top:16%;left:12%;right:12%;bottom:16%;border:2px solid #fff">
+      <div style="position:absolute;inset:0;background-image:linear-gradient(#ffffff55 1px,transparent 1px),linear-gradient(90deg,#ffffff55 1px,transparent 1px);background-size:33.3% 33.3%"></div>
+    </div>
+  </div></div>`,
+result:()=>`<div style="background:#FFC93C;height:100%;display:flex;flex-direction:column">
+  <div style="padding:14px 16px 6px;font-size:13px;font-weight:600;color:#2b2100">ค่าสีของไข่แดง</div>
+  <div style="padding:6px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;flex:1">
+    <div style="width:58px;height:58px;border-radius:12px;background:#ffffff33;display:flex;align-items:center;justify-content:center">${yolk(42)}</div>
+    <div style="display:flex;gap:8px;width:100%">
+      <div style="flex:1;background:#202124;color:#fff;border-radius:9px;padding:7px 9px;font-size:10px;line-height:1.5">R : 226<br>G : 131<br>B : 23</div>
+      <div style="flex:1;background:#202124;color:#fff;border-radius:9px;padding:7px 9px;font-size:10px;line-height:1.5">L* : 64<br>a* : 30<br>b* : 66</div>
+    </div>
+    <div style="width:100%;font-size:10px;color:#3a2e00">คะแนนสีของไข่แดง :</div>
+    <div style="width:100%;background:#202124;color:#fff;border-radius:9px;padding:9px;text-align:center;font-size:20px;font-weight:700">12</div>
+    <div onclick="goTo('detail')" style="cursor:pointer;font-size:10.5px;color:#2b2100;text-decoration:underline">รายละเอียดเพิ่มเติม &gt;&gt;</div>
+    <div style="flex:1"></div>
+    <div onclick="goTo('home')" style="cursor:pointer;width:100%;background:#1a1a1a;color:#fff;text-align:center;padding:9px;border-radius:18px;font-size:11px;margin-bottom:6px">Back</div>
+  </div></div>`,
+detail:()=>`<div style="background:#fff;height:100%;display:flex;flex-direction:column">
+  <div style="padding:14px 16px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#1a1a1a">
+    <span onclick="goTo('result')" style="cursor:pointer;font-size:16px">‹</span> Detail</div>
+  <div style="padding:4px 18px;display:flex;flex-direction:column;gap:12px;font-size:11px">
+    <div><div style="font-weight:700;color:#1a1a1a">ค่าสี RGB</div><div style="color:#444">R : 226 &nbsp; G : 131 &nbsp; B : 23</div></div>
+    <div><div style="font-weight:700;color:#1a1a1a">ค่าสี Lab</div><div style="color:#444">L* : 64 &nbsp; a* : 30 &nbsp; b* : 66</div></div>
+    <div><div style="font-weight:700;color:#1a1a1a">ค่าคะแนนสีของไข่</div><div style="color:#444">12</div></div>
+    <div><div style="font-weight:700;color:#1a1a1a">รายละเอียด</div><div style="color:#666">คะแนนระดับนี้บ่งบอกความเข้มของสีไข่แดง เทียบกับมาตรฐานพัดสี</div></div>
+  </div></div>`,
+};
+
+function goTo(id){ state=id; document.getElementById('screen').innerHTML=R[id](); renderTrack(); renderSpec(); }
+goTo('splash');
+</script>

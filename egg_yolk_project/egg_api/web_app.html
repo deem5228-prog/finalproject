@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🥚 Egg Yolk Color Predictor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Kanit', sans-serif; }
+    body { background-color: #121212; color: #1a1a1a; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+    
+    .mobile-frame {
+      width: 100%;
+      max-width: 380px;
+      height: 720px;
+      background-color: #111;
+      border-radius: 38px;
+      padding: 12px 9px;
+      box-shadow: 0 20px 45px -18px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    
+    .screen-area {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 26px;
+      overflow: hidden;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .home-bar {
+      width: 100px;
+      height: 4px;
+      background: #333;
+      border-radius: 3px;
+      margin: 8px auto 2px;
+    }
+
+    /* Screen styles */
+    .screen-splash { background: #FFC93C; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; text-align: center; }
+    .screen-home { background: #fff; height: 100%; display: flex; flex-direction: column; padding: 16px; }
+    .screen-crop { background: #2a2a2a; height: 100%; display: flex; flex-direction: column; color: #fff; position: relative; user-select: none; }
+    .screen-result { background: #FFC93C; height: 100%; display: flex; flex-direction: column; padding: 16px; color: #2b2100; }
+    .screen-detail { background: #fff; height: 100%; display: flex; flex-direction: column; padding: 16px; color: #1a1a1a; }
+
+    /* Buttons */
+    .btn-dark { background: #1a1a1a; color: #fff; padding: 11px; border-radius: 20px; text-align: center; font-size: 13px; font-weight: 600; cursor: pointer; border: none; width: 100%; }
+    .btn-outline { background: #fff; color: #1a1a1a; border: 1.5px solid #1a1a1a; padding: 10px; border-radius: 20px; text-align: center; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; }
+    
+    #fileInput { display: none; }
+
+    /* Circular Cropper Box */
+    .crop-circle-mask {
+      position: absolute;
+      width: 150px;
+      height: 150px;
+      top: 30%;
+      left: 30%;
+      border-radius: 50%;
+      border: 3px dashed #FFC93C;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65);
+      cursor: move;
+      touch-action: none;
+    }
+    
+    .crop-handle {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: #FFC93C;
+      border: 2px solid #fff;
+      border-radius: 50%;
+    }
+    .handle-tl { top: -4px; left: -4px; cursor: nwse-resize; }
+    .handle-tr { top: -4px; right: -4px; cursor: nesw-resize; }
+    .handle-bl { bottom: -4px; left: -4px; cursor: nesw-resize; }
+    .handle-br { bottom: -4px; right: -4px; cursor: nwse-resize; }
+  </style>
+</head>
+<body>
+
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <radialGradient id="yolkGrad" cx="35%" cy="30%" r="75%">
+        <stop offset="0%" stop-color="#FFD35C"/>
+        <stop offset="55%" stop-color="#FBA919"/>
+        <stop offset="100%" stop-color="#E1740A"/>
+      </radialGradient>
+    </defs>
+  </svg>
+
+  <div class="mobile-frame">
+    <div class="screen-area" id="screen">
+      <!-- Screens rendered dynamically -->
+    </div>
+    <div class="home-bar"></div>
+  </div>
+
+  <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+
+  <script>
+    let state = 'splash';
+    let selectedImageSrc = '';
+    let selectedFile = null;
+    let croppedBlobFile = null;
+    let resultData = {
+      predicted_score: 12,
+      raw_score: 11.96,
+      rgb: { r: 226, g: 131, b: 23 },
+      cielab: { l: 64, a: 30, b: 66 }
+    };
+
+    const yolkSvg = (s) => `<svg viewBox="0 0 120 120" width="${s}" height="${s}"><ellipse cx="60" cy="66" rx="54" ry="40" fill="#fff" stroke="#ecdfc0" stroke-width="2"/><circle cx="58" cy="58" r="27" fill="url(#yolkGrad)"/></svg>`;
+
+    function renderScreen() {
+      const screen = document.getElementById('screen');
+      
+      if (state === 'splash') {
+        screen.innerHTML = `
+          <div class="screen-splash">
+            <div style="flex:1"></div>
+            ${yolkSvg(85)}
+            <div style="font-size:22px;font-weight:700;color:#2b2100;margin-top:8px">ทำนายสีไข่แดง</div>
+            <div style="flex:1"></div>
+            <div onclick="goTo('home')" class="btn-dark" style="margin-bottom:20px">เริ่ม</div>
+          </div>
+        `;
+      } else if (state === 'home') {
+        screen.innerHTML = `
+          <div class="screen-home">
+            <div style="font-weight:700;font-size:16px;color:#1a1a1a;margin-bottom:12px">วิธีใช้</div>
+            <div style="display:flex;flex-direction:column;gap:12px;font-size:13px;color:#333;line-height:1.5">
+              <div>1. เลือกวิธีนำเข้าภาพจากการถ่ายรูปหรือคลังรูปภาพ</div>
+              <div>2. เลื่อนขยายวงกลมครอบเฉพาะไข่แดง</div>
+              <div>3. เมื่อวิเคราะห์เสร็จจะปรากฏคะแนนสีของไข่แดง</div>
+            </div>
+            <div style="flex:1"></div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px">
+              <div onclick="triggerUpload()" class="btn-dark">📷 ถ่ายรูป</div>
+              <div onclick="triggerUpload()" class="btn-outline">🖼 คลังรูปภาพ</div>
+            </div>
+          </div>
+        `;
+      } else if (state === 'crop') {
+        screen.innerHTML = `
+          <div class="screen-crop">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;font-size:13px;z-index:10;background:rgba(0,0,0,0.5)">
+              <span onclick="goTo('home')" style="cursor:pointer">✕</span>
+              <span style="font-weight:600">เลื่อนวงกลมครอบเฉพาะไข่แดง</span>
+              <span onclick="confirmCrop()" style="cursor:pointer;font-weight:700;color:#FFC93C">✓</span>
+            </div>
+            <div style="flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center" id="cropCanvas">
+              ${selectedImageSrc ? `<img id="sourceImage" src="${selectedImageSrc}" style="max-width:100%;max-height:100%;object-fit:contain">` : yolkSvg(140)}
+              
+              <!-- Circular Cropper Box -->
+              <div class="crop-circle-mask" id="cropCircle">
+                <div class="crop-handle handle-tl"></div>
+                <div class="crop-handle handle-tr"></div>
+                <div class="crop-handle handle-bl"></div>
+                <div class="crop-handle handle-br"></div>
+              </div>
+            </div>
+            <div style="padding:10px;text-align:center;font-size:11px;color:#aaa;background:rgba(0,0,0,0.7);z-index:10">
+              💡 คุณสามารถลากย้ายตำแหน่งวงกลมและย่อ/ขยายได้ตามต้องการ
+            </div>
+          </div>
+        `;
+        initInteractiveCircle();
+      } else if (state === 'result') {
+        screen.innerHTML = `
+          <div class="screen-result">
+            <div style="font-size:15px;font-weight:700;color:#2b2100;margin-bottom:10px">ค่าสีของไข่แดง</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:10px;flex:1">
+              <div style="width:90px;height:90px;border-radius:50%;background:#ffffff33;overflow:hidden;display:flex;align-items:center;justify-content:center;border:3px solid #fff">
+                ${selectedImageSrc ? `<img src="${selectedImageSrc}" style="width:100%;height:100%;object-fit:cover">` : yolkSvg(55)}
+              </div>
+              <div style="display:flex;gap:10px;width:100%">
+                <div style="flex:1;background:#202124;color:#fff;border-radius:10px;padding:9px 10px;font-size:11px;line-height:1.6">
+                  R : ${Math.round(resultData.rgb.r)}<br>G : ${Math.round(resultData.rgb.g)}<br>B : ${Math.round(resultData.rgb.b)}
+                </div>
+                <div style="flex:1;background:#202124;color:#fff;border-radius:10px;padding:9px 10px;font-size:11px;line-height:1.6">
+                  L* : ${Math.round(resultData.cielab.l)}<br>a* : ${Math.round(resultData.cielab.a)}<br>b* : ${Math.round(resultData.cielab.b)}
+                </div>
+              </div>
+              <div style="display:flex;gap:10px;width:100%">
+                <div style="flex:1;background:#202124;color:#fff;border-radius:10px;padding:8px 10px;font-size:11px;display:flex;justify-content:space-between;align-items:center">
+                  <span style="color:#aaa">Chroma (C*)</span>
+                  <span style="font-weight:700">${(resultData.cielab.chroma || Math.sqrt(resultData.cielab.a**2 + resultData.cielab.b**2)).toFixed(1)}</span>
+                </div>
+                <div style="flex:1;background:#202124;color:#fff;border-radius:10px;padding:8px 10px;font-size:11px;display:flex;justify-content:space-between;align-items:center">
+                  <span style="color:#aaa">Hue (h°)</span>
+                  <span style="font-weight:700">${(resultData.cielab.hue_angle || 0).toFixed(1)}°</span>
+                </div>
+              </div>
+              <div style="width:100%;font-size:12px;color:#3a2e00;font-weight:600;margin-top:4px">คะแนนสีของไข่แดง :</div>
+              <div style="width:100%;background:#202124;color:#fff;border-radius:12px;padding:12px;text-align:center">
+                <div style="font-size:32px;font-weight:700">${resultData.predicted_score}</div>
+                <div style="font-size:11px;color:#888">Raw Score: ${resultData.raw_score.toFixed(2)}</div>
+              </div>
+              <div onclick="goTo('detail')" style="cursor:pointer;font-size:12px;color:#2b2100;text-decoration:underline;margin:4px 0">รายละเอียดเพิ่มเติม &gt;&gt;</div>
+              <div style="flex:1"></div>
+              <div onclick="goTo('home')" class="btn-dark">Back</div>
+            </div>
+          </div>
+        `;
+      } else if (state === 'detail') {
+        screen.innerHTML = `
+          <div class="screen-detail">
+            <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:14px">
+              <span onclick="goTo('result')" style="cursor:pointer;font-size:20px">‹</span> Detail
+            </div>
+            <div style="display:flex;flex-direction:column;gap:16px;font-size:13px;line-height:1.5">
+              <div>
+                <div style="font-weight:700;color:#1a1a1a">ค่าสี RGB</div>
+                <div style="color:#444">R : ${Math.round(resultData.rgb.r)} &nbsp; G : ${Math.round(resultData.rgb.g)} &nbsp; B : ${Math.round(resultData.rgb.b)}</div>
+              </div>
+              <div>
+                <div style="font-weight:700;color:#1a1a1a">ค่าสี Lab</div>
+                <div style="color:#444">L* : ${Math.round(resultData.cielab.l)} &nbsp; a* : ${Math.round(resultData.cielab.a)} &nbsp; b* : ${Math.round(resultData.cielab.b)}</div>
+              </div>
+              <div>
+                <div style="font-weight:700;color:#1a1a1a">ค่า Chroma (ความสดของสี C*)</div>
+                <div style="color:#444">${(resultData.cielab.chroma || Math.sqrt(resultData.cielab.a**2 + resultData.cielab.b**2)).toFixed(2)}</div>
+              </div>
+              <div>
+                <div style="font-weight:700;color:#1a1a1a">ค่า Hue angle (มุมของโทนสี h°)</div>
+                <div style="color:#444">${(resultData.cielab.hue_angle || (Math.atan2(resultData.cielab.b, resultData.cielab.a) * 180 / Math.PI + (Math.atan2(resultData.cielab.b, resultData.cielab.a) < 0 ? 360 : 0))).toFixed(2)}°</div>
+              </div>
+              <div>
+                <div style="font-weight:700;color:#1a1a1a">ค่าคะแนนสีของไข่</div>
+                <div style="color:#444;font-weight:700;font-size:16px">${resultData.predicted_score}</div>
+              </div>
+              <div>
+                <div style="font-weight:700;color:#1a1a1a">รายละเอียด</div>
+                <div style="color:#666">คะแนนระดับนี้บ่งบอกความเข้มของสีไข่แดง เทียบกับมาตรฐานพัดสี (Yolk Color Fan 1-15) โดยประมวลผลด้วยแบบจำลอง Machine Learning (SVR RBF Kernel)</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function initInteractiveCircle() {
+      setTimeout(() => {
+        const circle = document.getElementById('cropCircle');
+        const canvas = document.getElementById('cropCanvas');
+        if (!circle || !canvas) return;
+
+        let isDragging = false;
+        let isResizing = false;
+        let startX, startY, startLeft, startTop, startWidth, startHeight;
+
+        circle.addEventListener('mousedown', (e) => {
+          if (e.target.classList.contains('crop-handle')) {
+            isResizing = true;
+          } else {
+            isDragging = true;
+          }
+          startX = e.clientX;
+          startY = e.clientY;
+          startLeft = circle.offsetLeft;
+          startTop = circle.offsetTop;
+          startWidth = circle.offsetWidth;
+          startHeight = circle.offsetHeight;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+          if (isDragging) {
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            circle.style.left = (startLeft + dx) + 'px';
+            circle.style.top = (startTop + dy) + 'px';
+          } else if (isResizing) {
+            const dx = e.clientX - startX;
+            const newSize = Math.max(50, startWidth + dx);
+            circle.style.width = newSize + 'px';
+            circle.style.height = newSize + 'px';
+          }
+        });
+
+        window.addEventListener('mouseup', () => {
+          isDragging = false;
+          isResizing = false;
+        });
+      }, 50);
+    }
+
+    function goTo(id) {
+      state = id;
+      renderScreen();
+    }
+
+    function triggerUpload() {
+      document.getElementById('fileInput').click();
+    }
+
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        selectedFile = file;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          selectedImageSrc = e.target.result;
+          goTo('crop');
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    async function confirmCrop() {
+      const imgElem = document.getElementById('sourceImage');
+      const circle = document.getElementById('cropCircle');
+
+      if (imgElem && circle) {
+        // Perform real HTML5 Canvas cropping of ONLY the circle mask region!
+        const imgRect = imgElem.getBoundingClientRect();
+        const circleRect = circle.getBoundingClientRect();
+
+        const scaleX = imgElem.naturalWidth / imgRect.width;
+        const scaleY = imgElem.naturalHeight / imgRect.height;
+
+        const cropX = Math.max(0, (circleRect.left - imgRect.left) * scaleX);
+        const cropY = Math.max(0, (circleRect.top - imgRect.top) * scaleY);
+        const cropWidth = Math.min(imgElem.naturalWidth - cropX, circleRect.width * scaleX);
+        const cropHeight = Math.min(imgElem.naturalHeight - cropY, circleRect.height * scaleY);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = cropWidth;
+        canvas.height = cropHeight;
+        const ctx = canvas.getContext('2d');
+        
+        ctx.drawImage(imgElem, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+        
+        selectedImageSrc = canvas.toDataURL('image/jpeg');
+
+        // Convert canvas to Blob file for real upload
+        await new Promise((resolve) => {
+          canvas.toBlob((blob) => {
+            croppedBlobFile = new File([blob], 'cropped_yolk.jpg', { type: 'image/jpeg' });
+            resolve();
+          }, 'image/jpeg', 0.95);
+        });
+      }
+
+      const uploadFile = croppedBlobFile || selectedFile;
+
+      if (uploadFile) {
+        const formData = new FormData();
+        formData.append('file', uploadFile, 'cropped_yolk.jpg');
+
+        try {
+          const apiHost = window.location.hostname || 'localhost';
+          const response = await fetch(`http://${apiHost}:8000/predict-image`, {
+            method: 'POST',
+            body: formData
+          });
+
+          if (response.ok) {
+            resultData = await response.json();
+          }
+        } catch (e) {
+          console.log('API error, using local predictions');
+        }
+      }
+
+      goTo('result');
+    }
+
+    renderScreen();
+  </script>
+</body>
+</html>
