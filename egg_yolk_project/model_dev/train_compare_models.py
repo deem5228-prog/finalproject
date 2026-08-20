@@ -57,11 +57,15 @@ def evaluate_models():
     }
 
     comparison_results = []
+    per_class_results = []
+    classes = sorted(np.unique(y))
 
     for name, pipeline in models.items():
         tr_r2, te_r2 = [], []
         tr_mae, te_mae = [], []
         tr_rmse, te_rmse = [], []
+
+        all_true, all_pred = [], []
 
         for train_idx, val_idx in skf.split(X, y):
             X_tr, y_tr = X[train_idx], y[train_idx]
@@ -81,6 +85,9 @@ def evaluate_models():
             te_mae.append(mean_absolute_error(y_te, p_te))
             te_rmse.append(np.sqrt(mean_squared_error(y_te, p_te)))
 
+            all_true.extend(y_te)
+            all_pred.extend(p_te)
+
         comparison_results.append({
             'Model': name,
             'Train R2': round(np.mean(tr_r2), 4),
@@ -91,7 +98,27 @@ def evaluate_models():
             'Test RMSE': round(np.mean(te_rmse), 4)
         })
 
+        # Calculate per-class regression error metrics on Test set
+        all_true = np.array(all_true)
+        all_pred = np.array(all_pred)
+
+        for c in classes:
+            mask = (all_true == c)
+            preds = all_pred[mask]
+            mae_c = mean_absolute_error(all_true[mask], preds)
+            rmse_c = np.sqrt(mean_squared_error(all_true[mask], preds))
+            
+            per_class_results.append({
+                'Model': name,
+                'Class (Fan Score)': c,
+                'Samples': int(np.sum(mask)),
+                'Mean Pred': round(np.mean(preds), 2),
+                'MAE': round(mae_c, 4),
+                'RMSE': round(rmse_c, 4)
+            })
+
     res_df = pd.DataFrame(comparison_results).sort_values(by='Test R2', ascending=False)
+    per_class_df = pd.DataFrame(per_class_results)
 
     print("\n" + "=" * 90)
     print("MODEL TRAIN vs TEST COMPARISON RESULTS (Stratified 5-Fold Cross-Validation)")
@@ -102,7 +129,11 @@ def evaluate_models():
     best_model_name = res_df.iloc[0]['Model']
     print(f"\nBest Performing Model: {best_model_name} (Test R^2 = {res_df.iloc[0]['Test R2']:.4f})")
 
-    return res_df
+    print(f"\n\n=== PER-CLASS REGRESSION ERROR BREAKDOWN FOR TOP MODEL ({best_model_name}) ===")
+    print(per_class_df[per_class_df['Model'] == best_model_name].to_string(index=False))
+    print("=" * 90)
+
+    return res_df, per_class_df
 
 
 if __name__ == '__main__':
