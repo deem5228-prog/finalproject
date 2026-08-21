@@ -22,12 +22,6 @@ async def predict_image(file: UploadFile = File(...)):
     Receives a cropped egg yolk image file via multipart/form-data,
     extracts RGB and CIELAB color features, and predicts the Yolk Color Fan score (1-15).
     """
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid file type '{file.content_type}'. Please upload an image file (JPEG/PNG)."
-        )
-
     try:
         # Read uploaded image bytes
         image_bytes = await file.read()
